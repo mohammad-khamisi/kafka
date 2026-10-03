@@ -1,61 +1,61 @@
 import argparse
 import json
+import time
+import uuid
+from datetime import datetime, timezone
 
-from confluent_kafka import Consumer
+from confluent_kafka import Producer
 
-parser = argparse.ArgumentParser(description="Read demo events from Kafka")
+parser = argparse.ArgumentParser(description="Send demo events to Kafka")
 parser.add_argument("--topic", default="demo-topic")
-parser.add_argument("--group", default="g1", help="consumer group id")
-parser.add_argument("--name", default="C1", help="label shown in the output")
-parser.add_argument("--from-beginning", action="store_true",
-                    help="start at the oldest record (only for a group with no saved offset)")
+parser.add_argument("--count", type=int, default=12, help="how many events to send")
+parser.add_argument("--keys", default="user1,user2,user3,user4",
+                    help="comma-separated keys, used in turn")
+parser.add_argument("--no-key", action="store_true", help="send events without a key")
+parser.add_argument("--partition", type=int, default=None,
+                    help="force one partition (skips the hash)")
+parser.add_argument("--delay", type=float, default=0.3, help="seconds between events")
 args = parser.parse_args()
 
-consumer = Consumer({
+producer = Producer({
     "bootstrap.servers": "localhost:9092",
-    "group.id": args.group,
-    "auto.offset.reset": "earliest" if args.from_beginning else "latest",
-    "enable.auto.commit": True,
+    # Same hash as the Java client, so the results match the Partition page demo.
+    "partitioner": "murmur2_random",
 })
 
 
-def on_assign(c, partitions):
-    print(f"[{args.name}] ASSIGNED partitions {sorted(p.partition for p in partitions)}")
+def on_delivery(err, msg):
+    # Called after the broker confirms the write.
+    if err is not None:
+        print("FAILED:", err)
+        return
+    key = msg.key().decode() if msg.key() else None
+    print(f"sent  key={str(key):<8} -> partition={msg.partition()} offset={msg.offset()}")
 
 
-def on_revoke(c, partitions):
-    print(f"[{args.name}] REVOKED  partitions {sorted(p.partition for p in partitions)}")
+keys = [k.strip() for k in args.keys.split(",") if k.strip()]
 
+for i in range(args.count):
+    key = None if args.no_key or not keys else keys[i % len(keys)]
+    event = {
+        "event_id": str(uuid.uuid4()),
+        "event_type": "demo.event",
+        "event_time": datetime.now(timezone.utc).isoformat(),
+        "seq": i,
+        "key": key,
+    }
+    extra = {}
+    if args.partition is not None:
+        extra["partition"] = args.partition
+    producer.produce(
+        args.topic,
+        key=key,
+        value=json.dumps(event).encode("utf-8"),
+        on_delivery=on_delivery,
+        **extra,
+    )
+    producer.poll(0)
+    time.sleep(args.delay)
 
-consumer.subscribe([args.topic], on_assign=on_assign, on_revoke=on_revoke)
-print(f"[{args.name}] group={args.group} waiting for records, Ctrl+C to stop")
-
-last_by_key = {}
-max_seq = -1
-
-try:
-    while True:
-        msg = consumer.poll(1.0)
-        if msg is None:
-            continue
-        if msg.error():
-            print("ERROR:", msg.error())
-            continue
-        event = json.loads(msg.value())
-        key = msg.key().decode() if msg.key() else None
-        seq = event.get("seq")
-        print(f"[{args.name}] partition={msg.partition()} offset={msg.offset()} "
-              f"key={str(key):<8} seq={seq}")
-        if key is not None:
-            if key in last_by_key and seq < last_by_key[key]:
-                print(f"   !! KEY ORDER BROKEN for {key}: seq {seq} after {last_by_key[key]}")
-            last_by_key[key] = seq
-        if seq is not None:
-            if seq < max_seq:
-                print(f"   note: seq {seq} arrived after {max_seq} "
-                      "(order across partitions is not guaranteed)")
-            max_seq = max(max_seq, seq)
-except KeyboardInterrupt:
-    pass
-finally:
-    consumer.close()
+producer.flush()
+print("done")
