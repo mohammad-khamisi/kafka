@@ -1,0 +1,12 @@
+# Two operator pods with leader election: one active, one standby.
+replicas: 2
+leaderElection:
+  enable: true
+logLevel: INFO
+resources:
+  requests:
+    cpu: 200m
+    memory: 384Mi
+  limits:
+    cpu: "1"
+    memory: 384Mi
