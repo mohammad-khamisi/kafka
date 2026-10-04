@@ -1,10 +1,11 @@
-#------------------------verifications-----------------------------
-kubectl config current-context
-kubectl get nodes -o custom-columns='NAME:.metadata.name,TAINTS:.spec.taints[*].key'
-docker info | grep -i "total memory"
-uname -m
-helm version --short
-curl -sI https://quay.io | head -1
+#------------------------Strimzi Operator-----------------------------
+kubectl create namespace kafka
+
+helm install strimzi-operator \
+  oci://quay.io/strimzi-helm/strimzi-kafka-operator \
+  --version 1.2.0 \
+  --namespace kafka \
+  --set replicas=1
 #------------------------verifications-----------------------------
 #------------------------verifications-----------------------------
 #------------------------verifications-----------------------------
