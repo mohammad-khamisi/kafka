@@ -10,6 +10,8 @@ helm install strimzi-operator \
 kubectl apply -f 01-kafka-nodepools-lab.yaml -f 02-kafka-lab.yaml
 kubectl -n kafka wait kafka/my-cluster --for=condition=Ready --timeout=1500s
 kubectl apply -f 03-kafkauser.yaml -f 04-kafkatopic.yaml
+kubectl -n kafka wait kafkauser/app-user --for=condition=Ready --timeout=180s
+kubectl -n kafka wait kafkatopic/orders-events --for=condition=Ready --timeout=180s
 #------------------------verifications-----------------------------
 #------------------------verifications-----------------------------
 #------------------------verifications-----------------------------
