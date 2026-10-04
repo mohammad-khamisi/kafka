@@ -1,6 +1,8 @@
 # This is the number of OPERATOR pods, not Kafka brokers.
-# One is enough: Kafka keeps running even if the operator is down for a while.
-replicas: 1
+# Two operator pods with leader election: one active, one standby.
+replicas: 2
+leaderElection:
+  enable: true
 logLevel: INFO
 resources:
   requests:
