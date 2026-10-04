@@ -1,5 +1,3 @@
-helm version
-
 kubectl create namespace kafka
 
 # check the chart and the keys you can override
