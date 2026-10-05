@@ -12,9 +12,4 @@
 
 
 
-<img width="865" height="505" alt="image" src="https://github.com/user-attachments/assets/bd045838-569d-4143-a6ac-182846bbd338" />
-
-<img width="873" height="521" alt="image" src="https://github.com/user-attachments/assets/bc660942-fc91-48e5-b985-84ea31e65788" />
-
-<img width="864" height="442" alt="image" src="https://github.com/user-attachments/assets/c9c38e2e-e728-474e-a969-2db58b4ff52a" />
 
