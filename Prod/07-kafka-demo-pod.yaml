@@ -49,7 +49,7 @@ spec:
         - |
           (i=0; while true; do i=$((i+1)); echo "$i:order-$i at $(date +%T)"; sleep 3; done) | \
           /opt/kafka/bin/kafka-console-producer.sh \
-            --bootstrap-server my-cluster-kafka-bootstrap.kafka.svc:9093 \
+            --bootstrap-server my-cluster-kafka-bootstrap.kafka.svc:9093 \    #------> entry point of our kafka cluster
             --topic orders-events \
             --producer.config /work/client.properties \
             --property parse.key=true --property key.separator=:
