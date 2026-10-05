@@ -48,9 +48,9 @@ spec:
       args:
         - |
           (i=0; while true; do i=$((i+1)); echo "$i:order-$i at $(date +%T)"; sleep 3; done) | \
-          /opt/kafka/bin/kafka-console-producer.sh \
-            --bootstrap-server my-cluster-kafka-bootstrap.kafka.svc:9093 \    #------> entry point of our kafka cluster
-            --topic orders-events \
+          /opt/kafka/bin/kafka-console-producer.sh \                          #------------------> producer
+            --bootstrap-server my-cluster-kafka-bootstrap.kafka.svc:9093 \    #------------------> entry point of our kafka cluster
+            --topic orders-events \                                           #------------------> Topic
             --producer.config /work/client.properties \
             --property parse.key=true --property key.separator=:
     - name: reader
@@ -66,8 +66,8 @@ spec:
       command: ["/bin/bash", "-c"]
       args:
         - |
-          /opt/kafka/bin/kafka-console-consumer.sh \
-            --bootstrap-server my-cluster-kafka-bootstrap.kafka.svc:9093 \
-            --topic orders-events --group orders-consumer --from-beginning \
+          /opt/kafka/bin/kafka-console-consumer.sh \                         #------------------> consumer
+            --bootstrap-server my-cluster-kafka-bootstrap.kafka.svc:9093 \   #------------------> entry point of our kafka cluster
+            --topic orders-events --group orders-consumer --from-beginning \ #------------------> Topic
             --consumer.config /work/client.properties \
             --property print.partition=true --property print.offset=true --property print.key=true
