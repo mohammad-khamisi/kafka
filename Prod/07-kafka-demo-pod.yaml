@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kafka-demo
+  namespace: kafka
+spec:
+  restartPolicy: Never
+  volumes:
+    - name: ca
+      secret:
+        secretName: my-cluster-cluster-ca-cert
+    - name: work
+      emptyDir: {}
+  initContainers:
+    - name: prepare
+      image: quay.io/strimzi/kafka:1.2.0-kafka-4.3.1
+      env:
+        - name: KAFKA_PASSWORD
+          valueFrom: { secretKeyRef: { name: app-user, key: password } }
+        - name: TRUSTSTORE_PASSWORD
+          valueFrom: { secretKeyRef: { name: my-cluster-cluster-ca-cert, key: ca.password } }
+      volumeMounts:
+        - { name: ca, mountPath: /certs, readOnly: true }
+        - { name: work, mountPath: /work }
+      command: ["/bin/bash", "-c"]
+      args:
+        - |
+          cat > /work/client.properties <<EOF
+          security.protocol=SASL_SSL
+          sasl.mechanism=SCRAM-SHA-512
+          sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username="app-user" password="${KAFKA_PASSWORD}";
+          ssl.truststore.type=PKCS12
+          ssl.truststore.location=/certs/ca.p12
+          ssl.truststore.password=${TRUSTSTORE_PASSWORD}
+          EOF
+  containers:
+    - name: writer
+      image: quay.io/strimzi/kafka:1.2.0-kafka-4.3.1
+      env:
+        - { name: KAFKA_HEAP_OPTS, value: "-Xmx256m" }
+      resources:
+        requests: { cpu: 100m, memory: 256Mi }
+        limits: { memory: 640Mi }
+      volumeMounts:
+        - { name: ca, mountPath: /certs, readOnly: true }
+        - { name: work, mountPath: /work }
+      command: ["/bin/bash", "-c"]
+      args:
+        - |
+          (i=0; while true; do i=$((i+1)); echo "$i:order-$i at $(date +%T)"; sleep 3; done) | \
+          /opt/kafka/bin/kafka-console-producer.sh \
+            --bootstrap-server my-cluster-kafka-bootstrap.kafka.svc:9093 \
+            --topic orders-events \
+            --producer.config /work/client.properties \
+            --property parse.key=true --property key.separator=:
+    - name: reader
+      image: quay.io/strimzi/kafka:1.2.0-kafka-4.3.1
+      env:
+        - { name: KAFKA_HEAP_OPTS, value: "-Xmx256m" }
+      resources:
+        requests: { cpu: 100m, memory: 256Mi }
+        limits: { memory: 640Mi }
+      volumeMounts:
+        - { name: ca, mountPath: /certs, readOnly: true }
+        - { name: work, mountPath: /work }
+      command: ["/bin/bash", "-c"]
+      args:
+        - |
+          /opt/kafka/bin/kafka-console-consumer.sh \
+            --bootstrap-server my-cluster-kafka-bootstrap.kafka.svc:9093 \
+            --topic orders-events --group orders-consumer --from-beginning \
+            --consumer.config /work/client.properties \
+            --property print.partition=true --property print.offset=true --property print.key=true
